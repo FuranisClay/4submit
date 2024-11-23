@@ -1,97 +1,60 @@
 package cangjie_gateway
 
-import net.http.*
+import std.collection.ArrayList
 import std.socket.*
+import std.time.*
 import std.sync.*
-import std.collection.HashMap
-import std.log.*
+import std.net.*
 
+public class Add {
+    Add(
+        public let host: String,
+        public let port: UInt16
+    ){}
+}
 
-
+let servers = ArrayList(
+    [
+        Add("192.168.173.102", 8080),
+        Add("192.168.173.103", 8080),
+        Add("192.168.173.104", 8080)
+    ]
+)
 var currentIndex = 0
-// 后端服务器列表
-var backendServers = [
-    "http://192.168.173.102:8080",
-    "http://192.168.173.103:8080",
-    "http://192.168.173.104:8080"
-]
 
-// 基本连接功能，转发请求到指定后端
-func proxyRequest(httpContext: HttpContext) {
-    let path = httpContext.request.url.toString()
-    // println(path)
-    if (path == "/api/default") {
-        let backendServer = backendServers[0]  // 在示例中，默认转发到第一个后端服务器
-        println(path + "to" + backendServer) 
-        let client = ClientBuilder().build()
-        let backendResponse = client.send(HttpRequestBuilder().url(backendServer + path).body(httpContext.request.body).build())
-        httpContext.responseBuilder.body(backendResponse.body)
-        client.close()
-    }
+func selectBackend(): Add {
+    let backend = servers[currentIndex]
+    currentIndex = (currentIndex + 1) % servers.size
+    return backend
 }
 
-// 负载均衡转发
-func loadBalanceProxyRequest(httpContext: HttpContext) {
+func forwardToBackend(request: Array<Byte>,backend:Add): Array<Byte> {
+    try (backendSocket = TcpSocket(backend.host, backend.port)) {
+        backendSocket.connect()
+        backendSocket.write(request)
 
-    let path = httpContext.request.url.toString()
-    //  println(path)
-    if (path == "/api/loadbalance") {
-        let backendServer = backendServers[currentIndex]
-        currentIndex = (currentIndex + 1) % backendServers.size  // ROUND_ROBIN 负载均衡
-        let client = ClientBuilder().build()
-        let backendResponse = client.send(HttpRequestBuilder().url(backendServer + path).body(httpContext.request.body).build())
-        httpContext.responseBuilder.body(backendResponse.body)
-        client.close()
+        // 接收后端服务器响应
+        let response = Array<Byte>(1024, item: 0)
+        let responseSize = backendSocket.read(response)
+        return response.slice(0, responseSize)
     }
+
+    return Array<Byte>()
 }
 
-
-func rewritePathProxyRequest(httpContext: HttpContext) {
-    let path = httpContext.request.url.toString()
-    //  println(path)
-    if (path == "/api/rewrite") {
-        let newPath = "/api/default"  // 重写路径
-        let backendServer = backendServers[currentIndex]
-        currentIndex = (currentIndex + 1) % backendServers.size  // ROUND_ROBIN
-        let client = ClientBuilder().build()
-        let backendResponse = client.send(HttpRequestBuilder().url(backendServer + newPath).body(httpContext.request.body).build())
-        httpContext.responseBuilder.body(backendResponse.body)
-        client.close()
+main() {
+    try (serverSocket = TcpServerSocket(bindAt: 80)) {
+        serverSocket.bind();
+        while (true) {
+            let client = serverSocket.accept();
+            spawn {
+                var backend = selectBackend()
+                let buf = Array<Byte>(1024, item: 0);
+                let count = client.read(buf);
+                let response = forwardToBackend(buf.slice(0, count),backend);
+                client.write(response);
+                client.close();
+            }
+        }
     }
-}
-
-
-func uaRewriteProxyRequest(httpContext: HttpContext) {
-    let path = httpContext.request.url.toString()
-    //  println(path)
-    if (path == "/api/uarewrite") {
-        let newUserAgent = "NEU-Cangjie"  // 重写User-Agent
-        httpContext.request.headers.set("User-Agent", newUserAgent)
-        // httpContext.request.headers["User-Agent"] = newUserAgent
-        let backendServer = backendServers[currentIndex]
-        currentIndex = (currentIndex + 1) % backendServers.size // ROUND_ROBIN
-        let client = ClientBuilder().build()
-        let backendResponse = client.send(HttpRequestBuilder().url(backendServer + path).body(httpContext.request.body).build())
-        httpContext.responseBuilder.body(backendResponse.body)
-        client.close()
-    }
-}
-
-main () {
-    // 1. 构建 Server 实例
-    let server = ServerBuilder()
-                        .addr("192.168.173.101")
-                        .port(80)  
-                        .build()
-    
-    // 2. 注册 HttpRequestHandler
-    server.distributor.register("/api/default", proxyRequest)
-    server.distributor.register("/api/loadbalance", loadBalanceProxyRequest)
-    server.distributor.register("/api/rewrite", rewritePathProxyRequest)
-    server.distributor.register("/api/uarewrite", uaRewriteProxyRequest)
-
-
-    server.logger.level = DEBUG
-    // 3. 启动服务
-    server.serve()
 }
