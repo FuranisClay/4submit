@@ -33,8 +33,8 @@ func redirect(request: Array<Byte>,backend:Add): Array<Byte> {
         back.connect()
         back.write(request)
         let response = Array<Byte>(1024, item: 0)
-        let responseSize = back.read(response)
-        return response.slice(0, responseSize)
+        let res = back.read(response)
+        return response.slice(0, res)
     }
 
     return Array<Byte>()
@@ -45,14 +45,12 @@ main() {
         server.bind();
         while (true) {
             let client = server.accept();
-            spawn {
                 var backend = choose()
                 let buf = Array<Byte>(1024, item: 0);
                 let count = client.read(buf);
                 let response = redirect(buf.slice(0, count),backend);
                 client.write(response);
                 client.close();
-            }
         }
     }
 }
