@@ -7,19 +7,15 @@ import std.sync.*
 import std.net.*
 
 public class Add {
-    Add(
-        public let host: String,
-        public let port: UInt16
-    ){}
+    public var ip: String = "0.0.0.0"
+    public var port: UInt16 = 10000
+    public Add(ip: String,port: UInt16) {
+        this.ip = ip
+        this.port = port
+    }
 }
 
-let servers = ArrayList(
-    [
-        Add("192.168.173.102", 8080),
-        Add("192.168.173.103", 8080),
-        Add("192.168.173.104", 8080)
-    ]
-)
+let servers = ArrayList([Add("192.168.173.102", 8080),Add("192.168.173.103", 8080),Add("192.168.173.104", 8080)])
 var currentIndex = 0
 
 func choose(): Add {
@@ -28,16 +24,16 @@ func choose(): Add {
     return backend
 }
 
-func redirect(request: Array<Byte>,backend:Add): Array<Byte> {
-    try (back = TcpSocket(backend.host, backend.port)) {
+func redirect(requestContext: Array<Byte>,backadd:Add): Array<Byte> {
+    let ret = Array<Byte>()
+    try (back = TcpSocket(backadd.ip, backadd.port)) {
         back.connect()
-        back.write(request)
-        let response = Array<Byte>(1024, item: 0)
-        let res = back.read(response)
-        return response.slice(0, res)
+        back.write(requestContext)
+        let ret = Array<Byte>(256, item: 0)
+        let res = back.read(ret)
+        return ret
     }
-
-    return Array<Byte>()
+    return ret
 }
 
 main() {
@@ -45,10 +41,10 @@ main() {
         server.bind();
         while (true) {
             let client = server.accept();
-                var backend = choose()
-                let buf = Array<Byte>(1024, item: 0);
-                let count = client.read(buf);
-                let response = redirect(buf.slice(0, count),backend);
+                var backadd = choose()
+                let ret = Array<Byte>(256, item: 0);
+                let count = client.read(ret);
+                let response = redirect(ret,backadd);
                 client.write(response);
                 client.close();
         }
