@@ -76,7 +76,7 @@ main () {
     // 1. 构建 Server 实例
     let server = ServerBuilder()
                         .addr("192.168.173.101")
-                        .port(80)  // 与docker-compose配置匹配
+                        .port(80)  
                         .build()
     
     // 2. 注册 HttpRequestHandler
