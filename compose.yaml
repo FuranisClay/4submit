@@ -1,0 +1,89 @@
+﻿version: '3.4'
+
+name: reverseproxybenchmark
+
+services:
+  # reverseproxybenchmark-gateway:
+  #   image: registrymvp.azurecr.io/envoyproxy/envoy:v1.31.2
+  #   volumes:
+  #     - ./envoy.yaml:/etc/envoy/envoy.yaml
+  #   networks:
+  #     reverseproxybenchmark-network:
+  #       ipv4_address: 192.168.173.101
+  #   ports:
+  #     - "41441:80"
+        
+  reverseproxybenchmark-gateway:
+    image: reverseproxybenchmark-gateway
+    build:
+      context: .
+      dockerfile: cangjie_gateway/Dockerfile
+    networks:
+      reverseproxybenchmark-network:
+        ipv4_address: 192.168.173.101
+    ports:
+      - "41439:80"
+  
+  
+  reverseproxybenchmark-backendserver-1:
+    image: reverseproxybenchmark-backendserver
+    build:
+      context: .
+      dockerfile: BackendServer/Dockerfile
+    environment:
+      - ServerName=backendserver-1
+    networks:
+      reverseproxybenchmark-network:
+        ipv4_address: 192.168.173.102
+    ports:
+      - "41442:8080"
+
+
+  reverseproxybenchmark-backendserver-2:
+    image: reverseproxybenchmark-backendserver
+    build:
+      context: .
+      dockerfile: BackendServer/Dockerfile
+    environment:
+      - ServerName=backendserver-2
+    networks:
+      reverseproxybenchmark-network:
+        ipv4_address: 192.168.173.103
+    ports:
+      - "41443:8080"
+
+
+  reverseproxybenchmark-backendserver-3:
+    image: reverseproxybenchmark-backendserver
+    build:
+      context: .
+      dockerfile: BackendServer/Dockerfile
+    environment:
+      - ServerName=backendserver-3
+    networks:
+      reverseproxybenchmark-network:
+        ipv4_address: 192.168.173.104
+    ports:
+      - "41444:8080"
+    
+
+
+  reverseproxybenchmark-benchmarkserver:
+    image: reverseproxybenchmark-benchmarkserver
+    build:
+      context: .
+      dockerfile: BenchmarkServer/Dockerfile
+    networks:
+      reverseproxybenchmark-network:
+        ipv4_address: 192.168.173.105
+    ports:
+      - "41440:8080"
+
+
+networks:
+  reverseproxybenchmark-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.173.0/24
