@@ -75,7 +75,7 @@ func uaRewriteProxyRequest(httpContext: HttpContext) {
 main () {
     // 1. 构建 Server 实例
     let server = ServerBuilder()
-                        .addr("0.0.0.0")
+                        .addr("192.168.173.101")
                         .port(80)  // 与docker-compose配置匹配
                         .build()
     
