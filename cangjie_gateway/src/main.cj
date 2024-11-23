@@ -4,6 +4,7 @@ import net.http.*
 import std.socket.*
 import std.sync.*
 import std.collection.HashMap
+import std.log.*
 
 
 
@@ -18,11 +19,12 @@ var backendServers = [
 // 基本连接功能，转发请求到指定后端
 func proxyRequest(httpContext: HttpContext) {
     let path = httpContext.request.url.toString()
-    println(path)
+    // println(path)
     if (path == "/api/default") {
         let backendServer = backendServers[0]  // 在示例中，默认转发到第一个后端服务器
+        println(path + "to" + backendServer) 
         let client = ClientBuilder().build()
-        let backendResponse = client.send(HttpRequestBuilder().url(backendServer + path).build())
+        let backendResponse = client.send(HttpRequestBuilder().url(backendServer + path).body(httpContext.request.body).build())
         httpContext.responseBuilder.body(backendResponse.body)
         client.close()
     }
@@ -32,34 +34,36 @@ func proxyRequest(httpContext: HttpContext) {
 func loadBalanceProxyRequest(httpContext: HttpContext) {
 
     let path = httpContext.request.url.toString()
-     println(path)
+    //  println(path)
     if (path == "/api/loadbalance") {
         let backendServer = backendServers[currentIndex]
         currentIndex = (currentIndex + 1) % backendServers.size  // ROUND_ROBIN 负载均衡
         let client = ClientBuilder().build()
-        let backendResponse = client.send(HttpRequestBuilder().url(backendServer + path).build())
+        let backendResponse = client.send(HttpRequestBuilder().url(backendServer + path).body(httpContext.request.body).build())
         httpContext.responseBuilder.body(backendResponse.body)
+        client.close()
     }
 }
 
 
 func rewritePathProxyRequest(httpContext: HttpContext) {
     let path = httpContext.request.url.toString()
-     println(path)
+    //  println(path)
     if (path == "/api/rewrite") {
         let newPath = "/api/default"  // 重写路径
         let backendServer = backendServers[currentIndex]
         currentIndex = (currentIndex + 1) % backendServers.size  // ROUND_ROBIN
         let client = ClientBuilder().build()
-        let backendResponse = client.send(HttpRequestBuilder().url(backendServer + newPath).build())
+        let backendResponse = client.send(HttpRequestBuilder().url(backendServer + newPath).body(httpContext.request.body).build())
         httpContext.responseBuilder.body(backendResponse.body)
+        client.close()
     }
 }
 
 
 func uaRewriteProxyRequest(httpContext: HttpContext) {
     let path = httpContext.request.url.toString()
-     println(path)
+    //  println(path)
     if (path == "/api/uarewrite") {
         let newUserAgent = "NEU-Cangjie"  // 重写User-Agent
         httpContext.request.headers.set("User-Agent", newUserAgent)
@@ -67,8 +71,9 @@ func uaRewriteProxyRequest(httpContext: HttpContext) {
         let backendServer = backendServers[currentIndex]
         currentIndex = (currentIndex + 1) % backendServers.size // ROUND_ROBIN
         let client = ClientBuilder().build()
-        let backendResponse = client.send(HttpRequestBuilder().url(backendServer + path).build())
+        let backendResponse = client.send(HttpRequestBuilder().url(backendServer + path).body(httpContext.request.body).build())
         httpContext.responseBuilder.body(backendResponse.body)
+        client.close()
     }
 }
 
@@ -85,6 +90,8 @@ main () {
     server.distributor.register("/api/rewrite", rewritePathProxyRequest)
     server.distributor.register("/api/uarewrite", uaRewriteProxyRequest)
 
+
+    server.logger.level = DEBUG
     // 3. 启动服务
     server.serve()
 }

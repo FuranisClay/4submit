@@ -1,0 +1,14 @@
+{
+  "packageInformation": {
+    "cangjie_gateway": {
+      "rootPackageName": "cangjie_gateway",
+      "fileNameHash": "-7912105612892934915",
+      "timeStamp": 1732378983,
+      "buildFlag": true,
+      "exeName": "main",
+      "hasSubPkgs": false
+    }
+  },
+  "jsonHash": "3900006942420024771",
+  "rootPackageName": "cangjie_gateway"
+}
