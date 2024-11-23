@@ -22,20 +22,18 @@ let servers = ArrayList(
 )
 var currentIndex = 0
 
-func selectBackend(): Add {
+func choose(): Add {
     let backend = servers[currentIndex]
     currentIndex = (currentIndex + 1) % servers.size
     return backend
 }
 
-func forwardToBackend(request: Array<Byte>,backend:Add): Array<Byte> {
-    try (backendSocket = TcpSocket(backend.host, backend.port)) {
-        backendSocket.connect()
-        backendSocket.write(request)
-
-        // 接收后端服务器响应
+func redirect(request: Array<Byte>,backend:Add): Array<Byte> {
+    try (back = TcpSocket(backend.host, backend.port)) {
+        back.connect()
+        back.write(request)
         let response = Array<Byte>(1024, item: 0)
-        let responseSize = backendSocket.read(response)
+        let responseSize = back.read(response)
         return response.slice(0, responseSize)
     }
 
@@ -43,15 +41,15 @@ func forwardToBackend(request: Array<Byte>,backend:Add): Array<Byte> {
 }
 
 main() {
-    try (serverSocket = TcpServerSocket(bindAt: 80)) {
-        serverSocket.bind();
+    try (server = TcpServerSocket(bindAt: 80)) {
+        server.bind();
         while (true) {
-            let client = serverSocket.accept();
+            let client = server.accept();
             spawn {
-                var backend = selectBackend()
+                var backend = choose()
                 let buf = Array<Byte>(1024, item: 0);
                 let count = client.read(buf);
-                let response = forwardToBackend(buf.slice(0, count),backend);
+                let response = redirect(buf.slice(0, count),backend);
                 client.write(response);
                 client.close();
             }
